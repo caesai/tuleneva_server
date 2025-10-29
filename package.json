@@ -1,0 +1,31 @@
+{
+  "name": "tuleneva_server",
+  "version": "1.0.0",
+  "description": "Server",
+  "homepage": "https://github.com/caesai/tuleneva_server#readme",
+  "bugs": {
+    "url": "https://github.com/caesai/tuleneva_server/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/caesai/tuleneva_server.git"
+  },
+  "license": "MIT",
+  "author": "Vasily Kharlamov",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "moment": "^2.30.1",
+    "mongoose": "^8.19.2",
+    "nodemon": "^3.1.10",
+    "telegraf": "^4.16.3"
+  }
+}
