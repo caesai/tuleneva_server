@@ -6,6 +6,10 @@ const { Telegraf } = require('telegraf');
 const { message } = require('telegraf/filters');
 const moment = require('moment');
 const mongoose = require('mongoose');
+const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
+require("dotenv").config();
+
 
 // Import the User model
 const User = require('./models/User');
@@ -14,25 +18,34 @@ const Rehearsal = require('./models/Rehearsal'); // Adjust path as necessary
 mongoose.connect("mongodb://localhost:27017")
     .then(() => console.log('MongoDB connection established successfully!'))
     .catch(err => console.error('MongoDB connection failed:', err.message));
-
 const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
 
 const BOT_START_MESSAGE = `
-    Бот студии Тюленва 25:
-    чтобы посмотреть расписание студии и забронировать репетицию
-    запустите мини аппку по кнопке
+    *Бот студии Тюленва 25:*\n чтобы посмотреть расписание студии и забронировать репетицию\n запустите мини аппку по кнопке
 `
-bot.start((ctx) => ctx.reply(BOT_START_MESSAGE));
+bot.start((ctx) => ctx.reply(BOT_START_MESSAGE, { parse_mode: 'MARKDOWN' }));
 bot.launch().then();
-
+const TELEGRAM_ADMIN_ID = process.env.TELEGRAM_ADMIN_ID;
 app.use(cors());
 app.use(express.json());
+
+app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', 'https://127.0.0.1:443'); // Replace with your frontend's origin
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    next();
+});
 
 app.get('/', (req, res) => {
     res.send('Hello World!');
 });
 
 // USERS
+
+// USER Authentication
+app.get('/api/users/auth', async (req, res) => {
+
+});
 
 // GET all users
 app.get('/api/users', async (req, res) => {
@@ -119,11 +132,11 @@ app.post('/api/book', async (req, res) => {
             { $push: { hours: { $each: newBookings } } },
             { new: true, upsert: true } // Return updated doc, create if not exists
         );
-        console.log('username: ', username)
+        console.log('username: ', username, date, hours.join(','))
         const BOOK_MESSAGE = `
-            ${username} забронировал репетицию 
+            ${username} забронировал репетицию ${date} ${hours.join(',')}
         `
-        bot.telegram.sendMessage(115555014, BOOK_MESSAGE);
+        await bot.telegram.sendMessage(TELEGRAM_ADMIN_ID, BOOK_MESSAGE);
         return res.status(201).json(updatedRehearsal);
     } catch (err) {
         console.error('An error occurred during booking:', err);
@@ -133,7 +146,7 @@ app.post('/api/book', async (req, res) => {
 
 app.delete('/api/cancel', async (req, res) => {
     try {
-        const { date, hours, userId } = req.body;
+        const { date, hours, userId, username } = req.body;
         const isAdmin = false;
         // 1. Input Validation
         if (!date || !hours || !Array.isArray(hours) || hours.length === 0 || !userId) {
@@ -185,9 +198,13 @@ app.delete('/api/cancel', async (req, res) => {
             },
             { new: true }
         );
+        const CANCEL_MESSAGE = `
+            ${username} отменил репетицию ${date} ${hours.join(',')}
+        `
         // 3. Handle the deletion if the hours array is now empty
         if (updatedRehearsal && updatedRehearsal.hours.length === 0) {
             await Rehearsal.deleteOne({ _id: updatedRehearsal._id });
+            await bot.telegram.sendMessage(TELEGRAM_ADMIN_ID, CANCEL_MESSAGE);
             return res.status(200).json({ message: 'All bookings for this day canceled, document deleted.' });
         }
 
@@ -195,7 +212,7 @@ app.delete('/api/cancel', async (req, res) => {
         if (!updatedRehearsal) {
             return res.status(404).json({ error: 'Booking not found or already canceled.' });
         }
-
+        await bot.telegram.sendMessage(TELEGRAM_ADMIN_ID, CANCEL_MESSAGE);
         res.status(200).json({
             message: 'Bookings canceled successfully.',
             rehearsal: updatedRehearsal
